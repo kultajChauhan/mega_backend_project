@@ -1,10 +1,6 @@
 import { asyncHandler } from "../utils/async-handler.js";
 import { User } from "../models/user.models.js";
-import {
-  sendEmail,
-  emailVerificationMailgenContent,
-  forgotPasswordMailgenContent,
-} from "../utils/mail.js";
+import { sendEmail, emailVerificationMailgenContent } from "../utils/mail.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 
@@ -34,11 +30,7 @@ const registerUser = asyncHandler(async (req, res) => {
     user.username,
     verificationUrl,
   );
-  sendEmail({
-    email: user.email,
-    subject: "For registration User",
-    mailgenContent: emailContent,
-  });
+  sendEmail({ username: user.username, mailgenContent: emailContent });
 
   res.status(200).json({
     message: "User Registered!",
@@ -55,21 +47,22 @@ const verifyEmail = asyncHandler(async (req, res) => {
     ],
   });
 
-  if (!user) {
+  if(!user){
     return res.status(400).json({
-      message: "user not found",
-    });
+      message:'user not found'
+    })
   }
 
-  user.isEmailVerified = true;
-  user.emailVerificationToken = undefined;
-  user.emailVerificationExpiry = undefined;
+  user.isEmailVerified=true
+  user.emailVerificationToken=undefined
+  user.emailVerificationExpiry=undefined
 
-  await user.save();
+  await user.save()
 
   return res.status(200).json({
-    message: "Email verified",
-  });
+    message:'Email verified'
+  })
+
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -136,79 +129,23 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const resendEmailVerification = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email,password}=req.body
 
-  if (!email || !password) {
+  if(!email||!password){
     return res.status(400).json({
-      message: "Both field required",
-    });
+      message:"Both field required"
+    })
   }
 
-  const user = await User.findOne({
-    email,
-  });
+  const user=await User.findOne({
+    email
+  })
 
-  if (!user) {
-    return res.status(400).json({
-      message: "User not found",
-    });
-  }
+  
 
-  const token = User.generateTemporaryToken();
-
-  user.emailVerificationToken = token;
-  user.emailVerificationExpiry = 1000 * 60 * 10;
-
-  await user.save();
-
-  let url = `${process.env.BASE_URL}/api/v1/auth/${token}`;
-
-  const emailContent = emailVerificationMailgenContent(user.username, url);
-
-  sendEmail({email:user.email,
-    subject:'Resend Email Verification',
-    mailgenContent: emailContent,
-  });
-
-  return res.status(200).json({
-    message: "email send !",
-  });
 });
 
-const resetForgottenPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({
-      message: "email is required !",
-    });
-  }
-
-  const user = await User.findOne(email);
-
-  const token = user.generateTemporaryToken();
-
-  user.forgotPasswordToken = token;
-  user.forgotPasswordExpiry = 100 * 60 * 10;
-
-  await user.save();
-
-  const url = `${process.env.BASE_URL}/api/v1/auth/${token}`;
-
-  const forgotPasswordContent = forgotPasswordMailgenContent(
-    user.username,
-    url,
-  );
-  sendEmail({
-    email: user.username,
-    subject: "forgot Password",
-    mailgenContent: forgotPasswordContent,
-  });
-
-  return res.status(200).json({
-    message: "mail send !",
-  });
-});
+const resetForgottenPassword = asyncHandler(async (req, res) => {});
 
 const refreshAccessToken = asyncHandler(async (req, res) => {});
 

@@ -17,10 +17,13 @@ const registerUser = asyncHandler(async (req, res) => {
   await user.save;
 
   //send verify email
-  const token = user.generateTemporaryToken();
-  console.log("token: ", token);
+  const { hashedToken, tokenExpiry } = user.generateTemporaryToken();
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpiry = tokenExpiry;
+  console.log("token: ", hashedToken);
+  await user.save();
 
-  const verificationUrl = `${process.env.BASE_URL}/${token}`;
+  const verificationUrl = `${process.env.BASE_URL}/verifyToken/${token}`;
   console.log("verificationUrl: ", verificationUrl);
 
   const emailContent = emailVerificationMailgenContent(
@@ -32,6 +35,34 @@ const registerUser = asyncHandler(async (req, res) => {
   res.status(200).json({
     message: "User Registered!",
   });
+});
+
+const verifyEmail = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+
+  const user = await User.findOne({
+    $and: [
+      { emailVerificationToken: token },
+      { emailVerificationExpiry: { $gt: Date.now() } },
+    ],
+  });
+
+  if(!user){
+    return res.status(400).json({
+      message:'user not found'
+    })
+  }
+
+  user.isEmailVerified=true
+  user.emailVerificationToken=undefined
+  user.emailVerificationExpiry=undefined
+
+  await user.save()
+
+  return res.status(200).json({
+    message:'Email verified'
+  })
+
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -84,11 +115,35 @@ const loginUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, userData, "user login successfull"));
 });
 
-const logoutUser = asyncHandler(async (req, res) => {});
+const logoutUser = asyncHandler(async (req, res) => {
+  const { id } = req.user._id;
+  const user = await User.findById(id).updateOne({ refreshToken: "" });
 
-const verifyEmail = asyncHandler(async (req, res) => {});
+  return res
+    .status(200)
+    .cookie("accessToken", "")
+    .cookie("refreshToken", "")
+    .json({
+      message: "Logout successfull !",
+    });
+});
 
-const resendEmailVerification = asyncHandler(async (req, res) => {});
+const resendEmailVerification = asyncHandler(async (req, res) => {
+  const { email,password}=req.body
+
+  if(!email||!password){
+    return res.status(400).json({
+      message:"Both field required"
+    })
+  }
+
+  const user=await User.findOne({
+    email
+  })
+
+  
+
+});
 
 const resetForgottenPassword = asyncHandler(async (req, res) => {});
 

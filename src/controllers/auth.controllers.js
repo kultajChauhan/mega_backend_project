@@ -30,7 +30,11 @@ const registerUser = asyncHandler(async (req, res) => {
     user.username,
     verificationUrl,
   );
-  sendEmail({ username: user.username, mailgenContent: emailContent });
+  sendEmail({
+    username: user.username,
+    subject: "user registered",
+    mailgenContent: emailContent,
+  });
 
   res.status(200).json({
     message: "User Registered!",
@@ -47,22 +51,21 @@ const verifyEmail = asyncHandler(async (req, res) => {
     ],
   });
 
-  if(!user){
+  if (!user) {
     return res.status(400).json({
-      message:'user not found'
-    })
+      message: "user not found",
+    });
   }
 
-  user.isEmailVerified=true
-  user.emailVerificationToken=undefined
-  user.emailVerificationExpiry=undefined
+  user.isEmailVerified = true;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpiry = undefined;
 
-  await user.save()
+  await user.save();
 
   return res.status(200).json({
-    message:'Email verified'
-  })
-
+    message: "Email verified",
+  });
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -129,27 +132,69 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const resendEmailVerification = asyncHandler(async (req, res) => {
-  const { email,password}=req.body
+  const { email, password } = req.body;
 
-  if(!email||!password){
+  if (!email || !password) {
     return res.status(400).json({
-      message:"Both field required"
-    })
+      message: "Both field required",
+    });
   }
 
-  const user=await User.findOne({
-    email
+  const user = await User.findOne({
+    email,
+  });
+
+  const url = user.generateTemporaryToken();
+
+  const emailVerificationContent = emailVerificationMailgenContent();
+
+  sendEmail({
+    username: user.username,
+    subject: "resend email verification",
+    mailgenContent: emailVerificationContent,
+  });
+
+  return res.status(400).json({
+    message:'email verification send again'
+  })
+});
+
+const forgotPasswordRequest = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      message: "Email is required",
+    });
+  }
+
+  const user = await User.findOne(email);
+
+const token=user.generateTemporaryToken()
+
+user.forgotPasswordToken=token
+user.forgotPasswordExpiry=1000*60*10
+
+await user.save()
+
+  const url=`${process.env.BASE_URL}/api/v1/auth/forgotPassword/${token}`
+
+  const forgotPasswordContent=forgotPasswordMailgenContent(user.username,url)
+
+
+  sendEmail({username:user.username,
+    subject:'forgot password link!',
+    mailgenContent:forgotPasswordContent
   })
 
-  
-
+  return res.status(400).json({
+    message:'forgot password link send'
+  })
 });
 
 const resetForgottenPassword = asyncHandler(async (req, res) => {});
 
 const refreshAccessToken = asyncHandler(async (req, res) => {});
-
-const forgotPasswordRequest = asyncHandler(async (req, res) => {});
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {});
 

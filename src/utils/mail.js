@@ -17,9 +17,24 @@ const sendEmail = async (Option) => {
 
   // Generate the plaintext version of the e-mail (for clients that do not support HTML)
   const emailText = mailGenerator.generatePlaintext(Option.mailgenContent);
+
+  const transporter = nodemailer.createTransport({
+    host: "sandbox.smtp.mailtrap.io",
+    port: 2525,
+    auth: {
+      user: "e9c413f6bc010d",
+      pass: "8b700b8b5f052c",
+    },
+  });
+
+  await transporter.sendMail({
+    from: "abc@abc.com",
+    to: Option.username,
+    subject: Option.subject,
+    text: emailText, // plain‑text body
+    html: emailBody, // HTML body
+  });
 };
-
-
 
 const emailVerificationMailgenContent = (username, verificationUrl) => {
   return {

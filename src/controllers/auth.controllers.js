@@ -1,6 +1,10 @@
 import { asyncHandler } from "../utils/async-handler.js";
 import { User } from "../models/user.models.js";
-import { sendEmail, emailVerificationMailgenContent } from "../utils/mail.js";
+import {
+  sendEmail,
+  emailVerificationMailgenContent,
+  forgotPasswordMailgenContent,
+} from "../utils/mail.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 
@@ -155,8 +159,8 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
   });
 
   return res.status(400).json({
-    message:'email verification send again'
-  })
+    message: "email verification send again",
+  });
 });
 
 const forgotPasswordRequest = asyncHandler(async (req, res) => {
@@ -170,29 +174,60 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
 
   const user = await User.findOne(email);
 
-const token=user.generateTemporaryToken()
+  const token = user.generateForgotPasswardToken();
 
-user.forgotPasswordToken=token
-user.forgotPasswordExpiry=1000*60*10
+  await user.save();
 
-await user.save()
+  const url = `${process.env.BASE_URL}/api/v1/auth/forgotPassword/${token}`;
 
-  const url=`${process.env.BASE_URL}/api/v1/auth/forgotPassword/${token}`
+  const forgotPasswordContent = forgotPasswordMailgenContent(
+    user.username,
+    url,
+  );
 
-  const forgotPasswordContent=forgotPasswordMailgenContent(user.username,url)
-
-
-  sendEmail({username:user.username,
-    subject:'forgot password link!',
-    mailgenContent:forgotPasswordContent
-  })
+  sendEmail({
+    username: user.username,
+    subject: "forgot password link!",
+    mailgenContent: forgotPasswordContent,
+  });
 
   return res.status(400).json({
-    message:'forgot password link send'
-  })
+    message: "forgot password link send",
+  });
 });
 
-const resetForgottenPassword = asyncHandler(async (req, res) => {});
+const resetForgottenPassword = asyncHandler(async (req, res) => {
+  const { password, confirmPassword } = req.body;
+  const { token } = req.params;
+
+  if (!password === confirmPassword) {
+    return res.status(400).json({
+      message: "both password not matched",
+    });
+  }
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    $and: [
+      { forgotPasswordToken: hashedToken },
+      { forgotPasswordExpiry: { $gt: Date.now() } },
+    ],
+  });
+
+  if (!user) {
+    new ApiError(404, "password time expired or invalid token");
+  }
+
+  user.password = password;
+  user.forgotPasswordExpiry = undefined;
+  user.forgotPasswordToken = undefined;
+  await user.save();
+
+  return res.status(200).json({
+    message: "password reset successfully",
+  });
+});
 
 const refreshAccessToken = asyncHandler(async (req, res) => {});
 

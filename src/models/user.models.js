@@ -105,4 +105,20 @@ userSchema.methods.generateTemporaryToken = function () {
   return { hashedToken, unhashedToken, tokenExpiry };
 };
 
+userSchema.methods.generateForgotPasswardToken = function () {
+  const unhashedToken = crypto.randonBytes(20).toString("hex");
+
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(unhashedToken)
+    .digest("hex");
+
+  const tokenExpiry = Date.now() + 1000 * 60 * 20;
+
+  this.forgotPasswordToken=hashedToken
+  this.forgotPasswordExpiry=tokenExpiry
+
+  return {unhashedToken};
+};
+
 export const User = mongoose.model("User", userSchema);

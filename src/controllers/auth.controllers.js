@@ -7,6 +7,7 @@ import {
 } from "../utils/mail.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
+import jwt from "jsonwebtoken";
 
 const registerUser = asyncHandler(async (req, res) => {
   const { username, password, email } = req.body;
@@ -229,7 +230,57 @@ const resetForgottenPassword = asyncHandler(async (req, res) => {
   });
 });
 
-const refreshAccessToken = asyncHandler(async (req, res) => {});
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const { refreshtoken } = res.cookie;
+
+  if (!refreshtoken) {
+    throw new ApiError(400, "refresh token missing unauthorise");
+  }
+
+  let decode;
+
+  try {
+    decode = jwt.verify(refreshtoken, process.env.REFRESH_TOKEN_SECRET);
+  } catch (error) {
+    throw new ApiError(400, "invalid or expired refresh token");
+  }
+
+  const user = await User.findOne(decode._id);
+  if (!user) {
+    throw new ApiError(400, "user is not found");
+  }
+
+  if (user.refreshToken !== refreshtoken) {
+    throw new ApiError(
+      400,
+      "Refresh token does not match. Possible token reuse Detected",
+    );
+  }
+
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+
+  user.refreshToken = refreshToken;
+
+  await user.save();
+
+  const cookieOption = {
+    httpOnly: true,
+    secure: true,
+    maxAge: 1000 * 60 * 60 * 24,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, cookieOption)
+    .cookie("refreshToken", refreshToken, cookieOption)
+    .json(
+      new ApiResponse(
+        200,
+        "token refreshed successfully. Please use the new token",
+      ),
+    );
+});
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {});
 

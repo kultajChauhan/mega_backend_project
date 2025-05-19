@@ -282,7 +282,26 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     );
 });
 
-const changeCurrentPassword = asyncHandler(async (req, res) => {});
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const {currentPassword,newPassword,confirmNewPassword}=req.body
+
+  if(!currentPassword||!newPassword||!confirmNewPassword){
+    throw new ApiError(400,'all field required')
+  }
+
+  const user=await User.findOne(currentPassword)
+
+  if(!user){
+    throw new ApiError(400,'user not found')
+  }
+
+   user.password=currentPassword
+   await user.save()
+
+   return res.status(200).json(
+    new ApiResponse(200,'password change successfully')
+   )
+});
 
 const getCurrentUser = asyncHandler(async (req, res) => {});
 

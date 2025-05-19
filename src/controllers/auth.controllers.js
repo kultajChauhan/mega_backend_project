@@ -303,7 +303,27 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
    )
 });
 
-const getCurrentUser = asyncHandler(async (req, res) => {});
+const getCurrentUser = asyncHandler(async (req, res) => {
+const {email}=req.body
+
+if(!email){
+  throw new ApiError(400,'email is required')
+}
+
+const user=await User.findOne(email)
+
+if(!user){
+  throw new ApiError(400,'user not found')
+}
+
+const userData = await User.find(user._id).select(
+    "-password,-isEmailVerified,-forgotPasswordToken,-forgotPasswordExpiry,-refreshToken,-emailVerificationToken,-emailVerificationExpiry",
+  );
+
+  return res.status(200).json(
+    userData
+  )
+});
 
 export {
   registerUser,
@@ -313,6 +333,7 @@ export {
   logoutUser,
   refreshAccessToken,
   registerUser,
+  changeCurrentPassword,
   resendEmailVerification,
   resetForgottenPassword,
   verifyEmail,
